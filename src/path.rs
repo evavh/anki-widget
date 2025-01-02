@@ -8,39 +8,58 @@ use std::path::PathBuf;
 pub(crate) fn find_db() -> Option<PathBuf> {
     let paths_per_install: Vec<_> = possible_paths()
         .into_iter()
-        .map(|install_path| {
-            find_files(&install_path, "collection.anki2").unwrap()
-        })
+        .map(|data_path| find_files(&data_path, "collection.anki2").unwrap())
         .filter(|collections| !collections.is_empty())
         .collect();
 
     let collection_paths = match paths_per_install.len() {
         0 => {
-            eprintln!("No anki paths found");
+            eprintln!("No Anki data paths found");
             return None;
         }
         1 => &paths_per_install[0],
         _ => {
             eprintln!(
-                "Multiple anki paths found: {:#?}",
-                paths_per_install.into_iter().flatten().collect::<Vec<_>>()
+                "Multiple Anki data paths with collection files found: {:#?}",
+                trim_to_install_path(paths_per_install)
             );
-            eprintln!("Do you have multiple anki installs?");
+            eprintln!("Do you have multiple Anki installs?");
             return None;
         }
     };
 
     let path = match collection_paths.len() {
-        0 => unreachable!("Filtered out empty install paths"),
+        0 => unreachable!("Filtered out empty data paths"),
         1 => collection_paths[0].clone(),
         _ => {
-            eprintln!("Multiple anki collections found: {collection_paths:#?}");
-            eprintln!("Do you have multiple anki profiles?");
+            eprintln!("Multiple Anki collections found: {collection_paths:#?}");
+            eprintln!("Do you have multiple Anki profiles?");
             return None;
         }
     };
 
     Some(path)
+}
+
+fn trim_to_install_path(paths: Vec<Vec<PathBuf>>) -> Vec<PathBuf> {
+    paths
+        .into_iter()
+        .flatten()
+        .map(|full_path| {
+            let mut new_path = full_path;
+            while new_path
+                .file_name()
+                .expect("Should encounter Anki2 before parents run out")
+                != "Anki2"
+            {
+                new_path = new_path
+                    .parent()
+                    .expect("Should encounter Anki2 before parents run out")
+                    .to_path_buf();
+            }
+            new_path
+        })
+        .collect()
 }
 
 fn possible_paths() -> Vec<PathBuf> {
