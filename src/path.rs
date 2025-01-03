@@ -1,32 +1,40 @@
-use std::env;
-use std::fs;
-use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::{env, fs, io};
 
-use std::path::PathBuf;
+pub(crate) fn find_db(
+    override_path: Option<PathBuf>,
+    user_profile: Option<String>,
+) -> Option<PathBuf> {
+    let possible_paths = override_path
+        .map(|p| vec![p])
+        .unwrap_or_else(possible_paths);
 
-pub(crate) fn find_db() -> Option<PathBuf> {
-    let paths_per_install: Vec<_> = possible_paths()
+    let paths_per_install: Vec<_> = possible_paths
         .into_iter()
         .map(|data_path| find_files(&data_path, "collection.anki2").unwrap())
         .filter(|collections| !collections.is_empty())
         .collect();
 
-    let collection_paths = match paths_per_install.len() {
+    let mut collection_paths = match paths_per_install.len() {
         0 => {
             eprintln!("No Anki data paths found");
             return None;
         }
-        1 => &paths_per_install[0],
+        1 => paths_per_install[0].clone(),
         _ => {
             eprintln!(
                 "Multiple Anki data paths with collection files found: {:#?}",
                 trim_to_install_path(paths_per_install)
             );
             eprintln!("Do you have multiple Anki installs?");
+            eprintln!("Run with --path <PATH> to select one");
             return None;
         }
     };
+
+    if let Some(user_profile) = user_profile {
+        collection_paths = filter_profile(collection_paths, user_profile);
+    }
 
     let path = match collection_paths.len() {
         0 => unreachable!("Filtered out empty data paths"),
@@ -34,11 +42,22 @@ pub(crate) fn find_db() -> Option<PathBuf> {
         _ => {
             eprintln!("Multiple Anki collections found: {collection_paths:#?}");
             eprintln!("Do you have multiple Anki profiles?");
+            eprintln!("Run with --user-profile <PROFILE> to select one");
             return None;
         }
     };
 
     Some(path)
+}
+
+fn filter_profile(
+    collection_paths: Vec<PathBuf>,
+    profile: String,
+) -> Vec<PathBuf> {
+    collection_paths
+        .into_iter()
+        .filter(|path| path.components().any(|c| *c.as_os_str() == *profile))
+        .collect()
 }
 
 fn trim_to_install_path(paths: Vec<Vec<PathBuf>>) -> Vec<PathBuf> {
