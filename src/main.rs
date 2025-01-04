@@ -2,10 +2,11 @@ use std::{path::PathBuf, thread, time::Duration};
 
 use anki::{
     collection::CollectionBuilder,
-    error::{AnkiError, DbErrorKind, Result},
+    error::{AnkiError, DbErrorKind},
     timestamp::TimestampSecs,
 };
 use clap::{command, Parser};
+use color_eyre::eyre::{Context, Result};
 
 mod path;
 
@@ -44,14 +45,15 @@ struct Args {
     user_profile: Option<String>,
 }
 
-fn main() {
+fn main() -> Result<()> {
+    color_eyre::install().unwrap();
+
     let args = Args::parse();
     let refresh_delay = Duration::from_secs(60 * args.refresh_delay);
     let retry_delay = Duration::from_secs(args.retry_delay);
 
-    let Some(db_path) = path::find_db(args.path, args.user_profile) else {
-        return;
-    };
+    let db_path = path::find_db(args.path, args.user_profile)
+        .wrap_err("Failed to find Anki database path")?;
 
     loop {
         {
@@ -81,7 +83,7 @@ fn main() {
 }
 
 fn log_errors_and_sleep<T>(
-    result: Result<T>,
+    result: anki::error::Result<T>,
     retry_delay: Duration,
 ) -> Option<T> {
     match result {
