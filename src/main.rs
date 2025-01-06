@@ -17,6 +17,13 @@ struct Args {
     /// Choose one-shot or continuous mode
     #[command(subcommand)]
     command: Command,
+    /// Print only the card counts, in the form <due> / <new>
+    #[arg(short, long, verbatim_doc_comment)]
+    short: bool,
+    /// Print output as machine-readable json of the form
+    /// {"msg": "<output>"}
+    #[arg(short, long, verbatim_doc_comment)]
+    json: bool,
     /// The full path to your Anki2 folder, by default the
     /// widget will search for this. Use this if you have
     /// a custom path, or multiple paths were found
@@ -63,17 +70,28 @@ enum Command {
     },
 }
 
+#[derive(Clone, Copy)]
+struct Format {
+    short: bool,
+    json: bool,
+}
+
 fn main() -> Result<()> {
     color_eyre::install().unwrap();
 
     let args = Args::parse();
+
+    let format = Format {
+        short: args.short,
+        json: args.json,
+    };
 
     let db_path = path::find_db(args.path, args.user_profile)
         .wrap_err("Couldn't auto-pick Anki database path")?;
 
     match args.command {
         Command::OneShot => {
-            retrieve_and_print(&db_path, Duration::from_secs(0));
+            retrieve_and_print(&db_path, Duration::from_secs(0), format);
         }
         Command::Continuous {
             refresh_delay,
@@ -83,7 +101,8 @@ fn main() -> Result<()> {
             let retry_delay = Duration::from_secs(retry_delay);
 
             loop {
-                if let Success::Yes = retrieve_and_print(&db_path, retry_delay)
+                if let Success::Yes =
+                    retrieve_and_print(&db_path, retry_delay, format)
                 {
                     thread::sleep(refresh_delay);
                 }
@@ -99,7 +118,11 @@ enum Success {
     No,
 }
 
-fn retrieve_and_print(db_path: &PathBuf, retry_delay: Duration) -> Success {
+fn retrieve_and_print(
+    db_path: &PathBuf,
+    retry_delay: Duration,
+    format: Format,
+) -> Success {
     let Some(mut collection) = log_errors_and_sleep(
         CollectionBuilder::new(db_path).build(),
         retry_delay,
@@ -118,7 +141,18 @@ fn retrieve_and_print(db_path: &PathBuf, retry_delay: Duration) -> Success {
     let review = deck_tree.review_count;
     let total_due = learn + review;
 
-    println!("Anki - new: {new}, due: {total_due}");
+    let output = if format.short {
+        format!("{total_due} / {new}")
+    } else {
+        format!("Anki - due: {total_due}, new: {new}")
+    };
+
+    if format.json {
+        println!("{{\"msg\": \"{output}\"}}");
+    } else {
+        println!("{output}");
+    }
+
     Success::Yes
 }
 
