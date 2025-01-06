@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     let retry_delay = Duration::from_secs(args.retry_delay);
 
     let db_path = path::find_db(args.path, args.user_profile)
-        .wrap_err("Failed to find Anki database path")?;
+        .wrap_err("Couldn't auto-pick Anki database path")?;
 
     loop {
         {
