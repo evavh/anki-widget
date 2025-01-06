@@ -17,38 +17,38 @@ struct Args {
     /// Choose one-shot or continuous mode
     #[command(subcommand)]
     command: Command,
-    /// Print only the card counts, in the form <due> / <new>
+    /// Print only the card counts, in the form <due> / <new>.
     #[arg(short, long, verbatim_doc_comment)]
     short: bool,
-    /// Print output as machine-readable json of the form
-    /// {"msg": "<output>"}
+    /// Print output as machine-readable json, with keys "msg",
+    /// "due", and "new".
     #[arg(short, long, verbatim_doc_comment)]
     json: bool,
     /// The full path to your Anki2 folder, by default the
     /// widget will search for this. Use this if you have
-    /// a custom path, or multiple paths were found
+    /// a custom path, or multiple paths were found.
     #[arg(short, long, verbatim_doc_comment)]
     path: Option<PathBuf>,
     /// The user profile to use. Use this if multiple
-    /// profiles were found
+    /// profiles were found.
     #[arg(short, long, value_name = "PROFILE", verbatim_doc_comment)]
     user_profile: Option<String>,
 }
 
 #[derive(Subcommand)]
 enum Command {
-    /// Print output once and then quit, used for GNOME and text
-    /// bars that do the refreshing for you by running the command
-    /// again
+    /// Print output once and then quit. Used for GNOME extensions
+    /// and text bars that do the refreshing for you by running the
+    /// command again.
     #[command(verbatim_doc_comment)]
     OneShot,
-    /// Print output every minute (by default), used for text bars
+    /// Print output every minute (by default). Used for text bars
     /// that only run the command once and expect output to change.
     /// Settings: --refresh-delay, --retry-delay
     #[command(verbatim_doc_comment)]
     Continuous {
         /// Minutes between checking the database for new card
-        /// counts
+        /// counts.
         #[arg(
             short,
             long,
@@ -58,7 +58,7 @@ enum Command {
         )]
         refresh_delay: u64,
         /// Seconds between retries when the database is in use,
-        /// or some other error occurs
+        /// or some other error occurs.
         #[arg(
             short = 't',
             long,
@@ -148,7 +148,9 @@ fn retrieve_and_print(
     };
 
     if format.json {
-        println!("{{\"msg\": \"{output}\"}}");
+        println!(
+            "{{\"msg\": \"{output}\", \"due\": {total_due}, \"new\": {new}}}"
+        );
     } else {
         println!("{output}");
     }
