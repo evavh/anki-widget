@@ -5,81 +5,121 @@ use anki::{
     error::{AnkiError, DbErrorKind},
     timestamp::TimestampSecs,
 };
-use clap::{command, Parser};
+use clap::{command, Parser, Subcommand};
 use color_eyre::eyre::{Context, Result};
 
 mod path;
 
-/// A widget that shows Anki's current due and new card counts.
+/// A widget that shows Anki's current due and new card counts
 #[derive(Parser)]
 #[command(version, about)]
 struct Args {
-    /// Minutes between checking the database for new card
-    /// counts.
-    #[arg(
-        short,
-        long,
-        default_value_t = 1,
-        value_name = "MINUTES",
-        verbatim_doc_comment
-    )]
-    refresh_delay: u64,
-    /// Seconds between retries when the database is in use,
-    /// or some other error occurs.
-    #[arg(
-        short = 't',
-        long,
-        default_value_t = 10,
-        value_name = "SECONDS",
-        verbatim_doc_comment
-    )]
-    retry_delay: u64,
+    /// Choose one-shot or continuous mode
+    #[command(subcommand)]
+    command: Command,
     /// The full path to your Anki2 folder, by default the
     /// widget will search for this. Use this if you have
-    /// a custom path, or multiple paths were found.
+    /// a custom path, or multiple paths were found
     #[arg(short, long, verbatim_doc_comment)]
     path: Option<PathBuf>,
     /// The user profile to use. Use this if multiple
-    /// profiles were found.
+    /// profiles were found
     #[arg(short, long, value_name = "PROFILE", verbatim_doc_comment)]
     user_profile: Option<String>,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Print output once and then quit, used for GNOME and text
+    /// bars that do the refreshing for you by running the command
+    /// again
+    #[command(verbatim_doc_comment)]
+    OneShot,
+    /// Print output every minute (by default), used for text bars
+    /// that only run the command once and expect output to change.
+    /// Settings: --refresh-delay, --retry-delay
+    #[command(verbatim_doc_comment)]
+    Continuous {
+        /// Minutes between checking the database for new card
+        /// counts
+        #[arg(
+            short,
+            long,
+            default_value_t = 1,
+            value_name = "MINUTES",
+            verbatim_doc_comment
+        )]
+        refresh_delay: u64,
+        /// Seconds between retries when the database is in use,
+        /// or some other error occurs
+        #[arg(
+            short = 't',
+            long,
+            default_value_t = 10,
+            value_name = "SECONDS",
+            verbatim_doc_comment
+        )]
+        retry_delay: u64,
+    },
 }
 
 fn main() -> Result<()> {
     color_eyre::install().unwrap();
 
     let args = Args::parse();
-    let refresh_delay = Duration::from_secs(60 * args.refresh_delay);
-    let retry_delay = Duration::from_secs(args.retry_delay);
 
     let db_path = path::find_db(args.path, args.user_profile)
         .wrap_err("Couldn't auto-pick Anki database path")?;
 
-    loop {
-        {
-            let Some(mut collection) = log_errors_and_sleep(
-                CollectionBuilder::new(&db_path).build(),
-                retry_delay,
-            ) else {
-                continue;
-            };
-            let now = TimestampSecs::now();
-            let Some(deck_tree) = log_errors_and_sleep(
-                collection.deck_tree(Some(now)),
-                retry_delay,
-            ) else {
-                continue;
-            };
-
-            let new = deck_tree.new_count;
-            let learn = deck_tree.learn_count;
-            let review = deck_tree.review_count;
-            let total_due = learn + review;
-
-            println!("Anki - new: {new}, due: {total_due}");
+    match args.command {
+        Command::OneShot => {
+            retrieve_and_print(&db_path, Duration::from_secs(0));
         }
-        thread::sleep(refresh_delay);
+        Command::Continuous {
+            refresh_delay,
+            retry_delay,
+        } => {
+            let refresh_delay = Duration::from_secs(60 * refresh_delay);
+            let retry_delay = Duration::from_secs(retry_delay);
+
+            loop {
+                if let Success::Yes = retrieve_and_print(&db_path, retry_delay)
+                {
+                    thread::sleep(refresh_delay);
+                }
+            }
+        }
     }
+
+    Ok(())
+}
+
+enum Success {
+    Yes,
+    No,
+}
+
+fn retrieve_and_print(db_path: &PathBuf, retry_delay: Duration) -> Success {
+    let Some(mut collection) = log_errors_and_sleep(
+        CollectionBuilder::new(db_path).build(),
+        retry_delay,
+    ) else {
+        return Success::No;
+    };
+    let now = TimestampSecs::now();
+    let Some(deck_tree) =
+        log_errors_and_sleep(collection.deck_tree(Some(now)), retry_delay)
+    else {
+        return Success::No;
+    };
+
+    let new = deck_tree.new_count;
+    let learn = deck_tree.learn_count;
+    let review = deck_tree.review_count;
+    let total_due = learn + review;
+
+    println!("Anki - new: {new}, due: {total_due}");
+    Success::Yes
 }
 
 fn log_errors_and_sleep<T>(
