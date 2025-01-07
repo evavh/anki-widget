@@ -3,7 +3,7 @@
 A Linux widget that shows you how many Anki cards you currently have to study.
 It can be used in a text-based bar, like i3bar or waybar, or with a GNOME
 extension that runs a command-line program and displays the output in the status
-bar.
+bar (like [this one](https://extensions.gnome.org/extension/2932/executor/)).
 
 ## Example output
 
