@@ -13,7 +13,13 @@ Short format: `12 / 20`
 
 ## Installation
 
-### Dependencies
+### Download binary
+
+Download the
+[latest release](https://github.com/evavh/anki-widget/releases/latest) and place
+it in your path (in $HOME/bin or $HOME/.local/bin, for example).
+
+### Build from source
 
 To compile the widget, we need to build the Anki Rust code, which requires
 `protoc v3.15` or later. On Ubuntu 24.10 and later, you can install protoc using
@@ -25,14 +31,13 @@ downloading a zip file
 [here](https://github.com/protocolbuffers/protobuf/releases/latest) (you
 probably want `protoc-<version>-linux-x86_64.zip`).
 
-Unzip it, and place the file `bin/protoc` in your path (in $HOME/bin or
-$HOME/.local/bin, for example).
-
-### Setup
+Unzip it, and place the file `bin/protoc` in your path.
 
 Once you have installed `protoc`, you can run
 `cargo install --git https://github.com/evavh/anki-widget` to compile and
 install `anki-widget`.
+
+## Setup
 
 To try it out, run `anki-widget one-shot` in the terminal, and follow any
 instructions for configuration. No configuration should be needed if you only
@@ -73,7 +78,7 @@ Options:
 
 ## Possible future features
 
-- [ ] Provide binaries
+- [x] Provide binaries
 - [ ] More formatting options (suggestions welcome)
 - [ ] Windows support?
 
