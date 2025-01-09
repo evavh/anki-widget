@@ -19,17 +19,21 @@ Download the
 [latest release](https://github.com/evavh/anki-widget/releases/latest) and place
 it in your path (in $HOME/bin or $HOME/.local/bin, for example).
 
-### Build from source
+### Build using build script
 
 To compile the widget, we need to build the Anki Rust code, which requires
-`protoc v3.15` or later. On Ubuntu 24.10 and later, you can install protoc using
+`protoc v3.15` or later. Run the script `build.sh` to download a recent version
+of `protoc`, build the widget, and clean up afterwards.
+
+### Build manually
+
+On Ubuntu 24.10 and later, you can install protoc using
 `apt install protobuf-compiler`. On other distro's, you can check your package
 manager for its `protoc` version.
 
-On earlier versions of Ubuntu, you need to manually install `protoc` by
-downloading a zip file
-[here](https://github.com/protocolbuffers/protobuf/releases/latest) (you
-probably want `protoc-<version>-linux-x86_64.zip`).
+On earlier versions of Ubuntu, you can manually install `protoc` by downloading
+a zip file [here](https://github.com/protocolbuffers/protobuf/releases/latest)
+(you probably want `protoc-<version>-linux-x86_64.zip`).
 
 Unzip it, and place the file `bin/protoc` in your path.
 
