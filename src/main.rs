@@ -41,12 +41,45 @@ enum Command {
     /// and text bars that do the refreshing for you by running the
     /// command again.
     #[command(verbatim_doc_comment)]
-    OneShot,
+    OneShot {
+        /// Print only the card counts, in the form <due> / <new>.
+        #[arg(short, long, verbatim_doc_comment)]
+        short: bool,
+        /// Print output as machine-readable json, with keys "msg",
+        /// "due", and "new".
+        #[arg(short, long, verbatim_doc_comment)]
+        json: bool,
+        /// The full path to your Anki2 folder, by default the
+        /// widget will search for this. Use this if you have
+        /// a custom path, or multiple paths were found.
+        #[arg(short, long, verbatim_doc_comment)]
+        path: Option<PathBuf>,
+        /// The user profile to use. Use this if multiple
+        /// profiles were found.
+        #[arg(short, long, value_name = "PROFILE", verbatim_doc_comment)]
+        user_profile: Option<String>,
+    },
     /// Print output every minute (by default). Used for text bars
     /// that only run the command once and expect output to change.
     /// Settings: --refresh-delay, --retry-delay
     #[command(verbatim_doc_comment)]
     Continuous {
+        /// Print only the card counts, in the form <due> / <new>.
+        #[arg(short, long, verbatim_doc_comment)]
+        short: bool,
+        /// Print output as machine-readable json, with keys "msg",
+        /// "due", and "new".
+        #[arg(short, long, verbatim_doc_comment)]
+        json: bool,
+        /// The full path to your Anki2 folder, by default the
+        /// widget will search for this. Use this if you have
+        /// a custom path, or multiple paths were found.
+        #[arg(short, long, verbatim_doc_comment)]
+        path: Option<PathBuf>,
+        /// The user profile to use. Use this if multiple
+        /// profiles were found.
+        #[arg(short, long, value_name = "PROFILE", verbatim_doc_comment)]
+        user_profile: Option<String>,
         /// Minutes between checking the database for new card
         /// counts.
         #[arg(
@@ -70,6 +103,11 @@ enum Command {
     },
 }
 
+struct DbSettings {
+    path: Option<PathBuf>,
+    user_profile: Option<String>,
+}
+
 #[derive(Clone, Copy)]
 struct Format {
     short: bool,
@@ -80,22 +118,19 @@ fn main() -> Result<()> {
     color_eyre::install().unwrap();
 
     let args = Args::parse();
+    let (db_settings, format) = combine_command_options(&args);
 
-    let format = Format {
-        short: args.short,
-        json: args.json,
-    };
-
-    let db_path = path::find_db(args.path, args.user_profile)
+    let db_path = path::find_db(db_settings)
         .wrap_err("Couldn't auto-pick Anki database path")?;
 
     match args.command {
-        Command::OneShot => {
+        Command::OneShot { .. } => {
             retrieve_and_print(&db_path, Duration::from_secs(0), format);
         }
         Command::Continuous {
             refresh_delay,
             retry_delay,
+            ..
         } => {
             let refresh_delay = Duration::from_secs(60 * refresh_delay);
             let retry_delay = Duration::from_secs(retry_delay);
@@ -111,6 +146,36 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn combine_command_options(args: &Args) -> (DbSettings, Format) {
+    match args.command {
+        Command::OneShot {
+            short,
+            json,
+            ref path,
+            ref user_profile,
+        }
+        | Command::Continuous {
+            short,
+            json,
+            ref path,
+            ref user_profile,
+            ..
+        } => (
+            DbSettings {
+                path: args.path.clone().or(path.clone()),
+                user_profile: args
+                    .user_profile
+                    .clone()
+                    .or(user_profile.clone()),
+            },
+            Format {
+                short: args.short || short,
+                json: args.json || json,
+            },
+        ),
+    }
 }
 
 enum Success {

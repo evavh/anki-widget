@@ -5,10 +5,13 @@ use std::{env, fs};
 use color_eyre::eyre::{eyre, Context, OptionExt, Result};
 use color_eyre::Section;
 
+use crate::DbSettings;
+
 pub(crate) fn find_db(
-    override_path: Option<PathBuf>,
-    user_profile: Option<String>,
+    db_settings: DbSettings,
 ) -> Result<PathBuf> {
+    let DbSettings { path: override_path, user_profile } = db_settings;
+
     let possible_paths: Vec<PathBuf> = override_path
         .map::<Result<_>, _>(|p| Ok(vec![p]))
         .unwrap_or_else(|| {
