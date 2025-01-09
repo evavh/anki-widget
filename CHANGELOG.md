@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.1
+
+- Make CLI more flexible
+- Add Github action for releasing
+
 ## v0.1.0
 
 Initial release for Linux
